@@ -95,7 +95,8 @@ class CTGANSynthesizer(object):
 
         return (loss * m).sum() / data.size()[0]
 
-    def fit(self, train_data, discrete_columns=tuple(), epochs=300, log_frequency=True):
+    def fit(self, train_data, discrete_columns=tuple(), epochs=300, log_frequency=True,
+            callback=None):
         """Fit the CTGAN Synthesizer models to the training data.
 
         Args:
@@ -112,6 +113,8 @@ class CTGANSynthesizer(object):
             log_frequency (boolean):
                 Whether to use log frequency of categorical levels in conditional
                 sampling. Defaults to ``True``.
+            callback (function):
+                If provided, this function will be called at the end of each training epoch.
         """
 
         self.transformer = DataTransformer()
@@ -224,6 +227,9 @@ class CTGANSynthesizer(object):
             print("Epoch %d, Loss G: %.4f, Loss D: %.4f" %
                   (i + 1, loss_g.detach().cpu(), loss_d.detach().cpu()),
                   flush=True)
+
+            if callback is not None:
+                callback(self, i+1)
 
     def sample(self, n):
         """Sample data similar to the training data.
