@@ -34,7 +34,7 @@ class CTGANSynthesizer(object):
     """
 
     def __init__(self, embedding_dim=128, gen_dim=(256, 256), dis_dim=(256, 256),
-                 l2scale=1e-6, batch_size=500):
+                 l2scale=1e-6, batch_size=500, disc_steps_per_g=1):
 
         self.embedding_dim = embedding_dim
         self.gen_dim = gen_dim
@@ -42,6 +42,7 @@ class CTGANSynthesizer(object):
 
         self.l2scale = l2scale
         self.batch_size = batch_size
+        self.disc_steps_per_g = disc_steps_per_g
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     def _apply_activate(self, data):
@@ -154,45 +155,46 @@ class CTGANSynthesizer(object):
         steps_per_epoch = max(len(train_data) // self.batch_size, 1)
         for i in range(epochs):
             for id_ in range(steps_per_epoch):
-                fakez = torch.normal(mean=mean, std=std)
+                for j in range(self.disc_steps_per_g):
+                    fakez = torch.normal(mean=mean, std=std)
 
-                condvec = self.cond_generator.sample(self.batch_size)
-                if condvec is None:
-                    c1, m1, col, opt = None, None, None, None
-                    real = data_sampler.sample(self.batch_size, col, opt)
-                else:
-                    c1, m1, col, opt = condvec
-                    c1 = torch.from_numpy(c1).to(self.device)
-                    m1 = torch.from_numpy(m1).to(self.device)
-                    fakez = torch.cat([fakez, c1], dim=1)
+                    condvec = self.cond_generator.sample(self.batch_size)
+                    if condvec is None:
+                        c1, m1, col, opt = None, None, None, None
+                        real = data_sampler.sample(self.batch_size, col, opt)
+                    else:
+                        c1, m1, col, opt = condvec
+                        c1 = torch.from_numpy(c1).to(self.device)
+                        m1 = torch.from_numpy(m1).to(self.device)
+                        fakez = torch.cat([fakez, c1], dim=1)
 
-                    perm = np.arange(self.batch_size)
-                    np.random.shuffle(perm)
-                    real = data_sampler.sample(self.batch_size, col[perm], opt[perm])
-                    c2 = c1[perm]
+                        perm = np.arange(self.batch_size)
+                        np.random.shuffle(perm)
+                        real = data_sampler.sample(self.batch_size, col[perm], opt[perm])
+                        c2 = c1[perm]
 
-                fake = self.generator(fakez)
-                fakeact = self._apply_activate(fake)
+                    fake = self.generator(fakez)
+                    fakeact = self._apply_activate(fake)
 
-                real = torch.from_numpy(real.astype('float32')).to(self.device)
+                    real = torch.from_numpy(real.astype('float32')).to(self.device)
 
-                if c1 is not None:
-                    fake_cat = torch.cat([fakeact, c1], dim=1)
-                    real_cat = torch.cat([real, c2], dim=1)
-                else:
-                    real_cat = real
-                    fake_cat = fake
+                    if c1 is not None:
+                        fake_cat = torch.cat([fakeact, c1], dim=1)
+                        real_cat = torch.cat([real, c2], dim=1)
+                    else:
+                        real_cat = real
+                        fake_cat = fake
 
-                y_fake = discriminator(fake_cat)
-                y_real = discriminator(real_cat)
+                    y_fake = discriminator(fake_cat)
+                    y_real = discriminator(real_cat)
 
-                pen = discriminator.calc_gradient_penalty(real_cat, fake_cat, self.device)
-                loss_d = -(torch.mean(y_real) - torch.mean(y_fake))
+                    pen = discriminator.calc_gradient_penalty(real_cat, fake_cat, self.device)
+                    loss_d = -(torch.mean(y_real) - torch.mean(y_fake))
 
-                optimizerD.zero_grad()
-                pen.backward(retain_graph=True)
-                loss_d.backward()
-                optimizerD.step()
+                    optimizerD.zero_grad()
+                    pen.backward(retain_graph=True)
+                    loss_d.backward()
+                    optimizerD.step()
 
                 fakez = torch.normal(mean=mean, std=std)
                 condvec = self.cond_generator.sample(self.batch_size)
