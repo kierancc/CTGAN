@@ -73,14 +73,14 @@ class ConditionalGenerator(object):
             return None
 
         batch = batch
-        idx = np.random.choice(np.arange(self.n_col), batch)
+        idx = np.random.choice(np.arange(self.n_col), batch)  # Selected columns
 
-        vec1 = np.zeros((batch, self.n_opt), dtype='float32')
-        mask1 = np.zeros((batch, self.n_col), dtype='float32')
-        mask1[np.arange(batch), idx] = 1
-        opt1prime = self.random_choice_prob_index(idx)
-        opt1 = self.interval[idx, 0] + opt1prime
-        vec1[np.arange(batch), opt1] = 1
+        vec1 = np.zeros((batch, self.n_opt), dtype='float32')  # Expanded matrix of one-hot reps
+        mask1 = np.zeros((batch, self.n_col), dtype='float32')  # Matrix of unexpanded categorical columns
+        mask1[np.arange(batch), idx] = 1  # Indicate chosen columns
+        opt1prime = self.random_choice_prob_index(idx)  # Chosen category within one-hot
+        opt1 = self.interval[idx, 0] + opt1prime  # Indices in expaned one-hot rep
+        vec1[np.arange(batch), opt1] = 1  # Final representation as given in paper
 
         return vec1, mask1, idx, opt1prime
 
