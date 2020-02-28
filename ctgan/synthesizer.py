@@ -96,8 +96,8 @@ class CTGANSynthesizer(object):
 
         return (loss * m).sum() / data.size()[0]
 
-    def fit(self, train_data, discrete_columns=tuple(), epochs=300, log_frequency=True,
-            callback=None):
+    def fit(self, train_data, discrete_columns=tuple(), sample_columns=None, epochs=300,
+            log_frequency=True, callback=None):
         """Fit the CTGAN Synthesizer models to the training data.
 
         Args:
@@ -109,6 +109,8 @@ class CTGANSynthesizer(object):
                 Vector. If ``train_data`` is a Numpy array, this list should
                 contain the integer indices of the columns. Otherwise, if it is
                 a ``pandas.DataFrame``, this list should contain the column names.
+            sample_columns (list-like):
+                List of discrete columns to restrict the conditional sampler.
             epochs (int):
                 Number of training epochs. Defaults to 300.
             log_frequency (boolean):
@@ -128,7 +130,8 @@ class CTGANSynthesizer(object):
         self.cond_generator = ConditionalGenerator(
             train_data,
             self.transformer.output_info,
-            log_frequency
+            log_frequency,
+            sample_columns
         )
 
         self.generator = Generator(
@@ -231,7 +234,7 @@ class CTGANSynthesizer(object):
                   flush=True)
 
             if callback is not None:
-                callback(self, i+1)
+                callback(self, i + 1)
 
     def sample(self, n):
         """Sample data similar to the training data.

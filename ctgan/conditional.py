@@ -2,7 +2,7 @@ import numpy as np
 
 
 class ConditionalGenerator(object):
-    def __init__(self, data, output_info, log_frequency):
+    def __init__(self, data, output_info, log_frequency, allowed_column_names):
         self.model = []
 
         start = 0
@@ -35,6 +35,7 @@ class ConditionalGenerator(object):
         self.interval = []
         self.n_col = 0
         self.n_opt = 0
+        self.sample_columns = []
         skip = False
         start = 0
         self.p = np.zeros((counter, max_interval))
@@ -53,6 +54,11 @@ class ConditionalGenerator(object):
                 if log_frequency:
                     tmp = np.log(tmp + 1)
                 tmp = tmp / np.sum(tmp)
+
+                # If current col is in the allowed list
+                if item[2] in allowed_column_names:
+                    self.sample_columns.append(self.n_col)
+
                 self.p[self.n_col, :item[0]] = tmp
                 self.interval.append((self.n_opt, item[0]))
                 self.n_opt += item[0]
@@ -73,7 +79,10 @@ class ConditionalGenerator(object):
             return None
 
         batch = batch
-        idx = np.random.choice(np.arange(self.n_col), batch)  # Selected columns
+        if len(self.sample_columns) == 0:
+            idx = np.random.choice(self.n_col, batch)  # Selected columns
+        else:
+            idx = np.random.choice(self.sample_columns, batch)  # Selected columns
 
         vec1 = np.zeros((batch, self.n_opt), dtype='float32')  # Expanded matrix of one-hot reps
         mask1 = np.zeros((batch, self.n_col), dtype='float32')  # Matrix of unexpanded categorical columns
