@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 import torch
 from torch import optim
 from torch.nn import functional
@@ -157,6 +158,8 @@ class CTGANSynthesizer(object):
 
         steps_per_epoch = max(len(train_data) // self.batch_size, 1)
         for i in range(epochs):
+            pbar = tqdm(total=steps_per_epoch, leave=False)
+
             for id_ in range(steps_per_epoch):
                 for j in range(self.disc_steps_per_g):
                     fakez = torch.normal(mean=mean, std=std)
@@ -229,12 +232,16 @@ class CTGANSynthesizer(object):
                 loss_g.backward()
                 optimizerG.step()
 
-            print("Epoch %d, Loss G: %.4f, Loss D: %.4f" %
+                pbar.update(1)
+
+            print("\nEpoch %d, Loss G: %.4f, Loss D: %.4f" %
                   (i + 1, loss_g.detach().cpu(), loss_d.detach().cpu()),
                   flush=True)
 
             if callback is not None:
                 callback(self, i + 1)
+
+            pbar.close()
 
     def sample(self, n):
         """Sample data similar to the training data.
